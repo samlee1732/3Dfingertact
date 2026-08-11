@@ -1,0 +1,9 @@
+sensor_id: 1
+
+sensor_reconstruction:
+  lighting_threshold: 2
+  kernel_list:
+    - 7
+    - 7
+  contact_gray_base: 20
+  depth_k: 100
