@@ -7,14 +7,15 @@ import matplotlib
 # 使用无窗口绘图后端，保证从 VS Code 或终端运行都能直接保存图片。
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib.colors import LightSource
 import numpy as np
 import yaml
 
 
 # 使用其他图片时只需修改下面三个路径；输入必须是同一传感器校正、裁剪后的图片。
 ROOT = Path(__file__).resolve().parent
-REFERENCE_PATH = ROOT / 'calibration/sensor_1/depth_calibration/rectify_crop_ref.png'
-INPUT_PATH = ROOT / 'calibration/sensor_1/depth_calibration/rectify_crop_sample.png'
+REFERENCE_PATH = ROOT / 'examples/figure3_logo/reference.png'
+INPUT_PATH = ROOT / 'examples/figure3_logo/input.png'
 OUTPUT_PATH = ROOT.parent / 'results'
 
 
@@ -116,7 +117,7 @@ def save_results(ref, img, result, Pixel_to_Depth):
         plt.imsave(output / filename, result[key], cmap=cmap,
                    vmin=vmin, vmax=vmax)
 
-    # 0.08 与原 Visualizer 的有效接触显示阈值一致，只影响预览，不修改点云。
+    # 保留原来的彩色散点图，0.08 与官方 Visualizer 的显示阈值一致。
     points = result['points']
     contact_points = points[points[:, 2] > 0.08]
     fig = plt.figure(figsize=(8, 6))
@@ -132,6 +133,39 @@ def save_results(ref, img, result, Pixel_to_Depth):
                 bbox_inches='tight')
     plt.close(fig)
 
+    # 论文风格灰色高度表面；阈值只清理预览噪声，不修改点云数据。
+    surface_height = np.where(
+        result['height_map_expand'] > 0.08,
+        result['height_map_expand'], 0)
+    surface_shape = surface_height.shape
+    X = points[:, 0].reshape(surface_shape)
+    Y = points[:, 1].reshape(surface_shape)
+    light = LightSource(azdeg=315, altdeg=40)
+    illumination = light.hillshade(
+        surface_height, vert_exag=5,
+        dx=abs(X[0, 1] - X[0, 0]),
+        dy=abs(Y[1, 0] - Y[0, 0]), fraction=0.7)
+    facecolors = plt.cm.gray(0.35 + 0.55 * illumination)
+
+    fig = plt.figure(figsize=(8, 5), facecolor='white')
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_surface(X, Y, surface_height, facecolors=facecolors,
+                    rstride=2, cstride=2, linewidth=0,
+                    antialiased=False, shade=False)
+    max_surface_height = max(float(surface_height.max()), 0.1)
+    ax.view_init(elev=58, azim=-88)
+    ax.set_proj_type('persp', focal_length=0.9)
+    ax.set_box_aspect((X.max() - X.min(), Y.max() - Y.min(),
+                       max_surface_height * 3))
+    ax.set_xlim(X.min(), X.max())
+    ax.set_ylim(Y.min(), Y.max())
+    ax.set_zlim(0, max_surface_height * 1.2)
+    ax.set_axis_off()
+    fig.subplots_adjust(0, 0, 1, 1)
+    fig.savefig(output / '16-3d-point-cloud-paper-style.png', dpi=160,
+                bbox_inches='tight', pad_inches=0.02, facecolor='white')
+    plt.close(fig)
+
     # JSON 记录各阶段的数值变化，NPZ 保留未归一化的原始数组。
     metrics = {
         name: {
@@ -144,9 +178,9 @@ def save_results(ref, img, result, Pixel_to_Depth):
         }
         for name, value in result.items()
     }
-    with (output / '16-stage-metrics.json').open('w', encoding='utf-8') as f:
+    with (output / '17-stage-metrics.json').open('w', encoding='utf-8') as f:
         json.dump(metrics, f, indent=2)
-    np.savez_compressed(output / '17-reconstruction.npz', **result)
+    np.savez_compressed(output / '18-reconstruction.npz', **result)
     print('Results saved to:', output)
 
 

@@ -23,6 +23,6 @@ OUTPUT_PATH = Path('/path/to/output')
 ```
 
 Each run creates a `results/YYMMDD-HHMMSS` directory containing numbered images
-for every transformation stage, a 3D point-cloud image, stage metrics, and the
-exact intermediate arrays. The final `points` array in `17-reconstruction.npz`
-has shape `N x 3`.
+for every transformation stage, original and paper-style 3D point-cloud images,
+stage metrics, and the exact intermediate arrays. The final `points` array in
+`18-reconstruction.npz` has shape `N x 3`.
